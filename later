@@ -1,0 +1,266 @@
+#!/usr/bin/env perl
+
+# This program is free software: you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation, either version 3 of the License, or
+# (at your option) any later version.
+#
+# This program is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
+use strict;
+use warnings;
+use Getopt::Long qw(:config no_ignore_case);
+use Pod::Usage;
+use Module::Load::Conditional qw(can_load);
+use Tie::File;
+use File::Basename;
+use File::Path qw(make_path);
+use Time::Piece;
+
+our $VERSION = '1.0.0';
+
+my (%opt, @o, @r, $file, $browser);
+my $sep = '>>>';
+
+GetOptions(
+    \%opt, 'q|quiet', 'a', 't', 'O=s', 'k', 'l:s',
+    'h|help'    => sub { pod2usage(1); },
+    'v|version' => sub { print "later v$VERSION\n"; exit; },
+    'f=s'       => \$file,
+    'o=s{,}'    => \@o,
+    'r=s{,}'    => \@r,
+) or pod2usage(2);
+
+unless ($file) {
+    $ENV{'HOME'}
+        ? $file = "$ENV{'HOME'}/.later"
+        : die '$HOME' . " is undefined\n";
+}
+
+if (@r) {
+    &remove_nums(&get_nums(@r));
+}
+elsif (@o || defined $opt{'O'}) {
+    $ENV{'BROWSER'}
+        ? $browser = $ENV{'BROWSER'}
+        : die '$BROWSER' . " is undefined\n";
+    if (@o) {
+        &open_nums(&get_nums(@o));
+    }
+    else {
+        $opt{'O'} ? &open($opt{'O'}) : exit 2;
+    }
+}
+elsif (defined $opt{'l'}) {
+    &list($opt{'l'});
+}
+elsif (@ARGV) {
+    &add(@ARGV);
+}
+else {
+    print "error: no operation specified (use -h for help)\n";
+    exit 1;
+}
+
+sub check_for_file {
+    die "$file does not exist\n" unless -e $file;
+}
+
+sub get_nums {
+    my @args = @_;
+    my @nums;
+    for (@args) {
+        # Detect standalone digits or those separated by a hyphen.
+        if ($_ =~ /^\d+(-\d+)?$/) {
+            my @range = split /-/, $_;
+            # Prevent 0, 0-x from being accepted; 1-0 produces no range,
+            # so it is already ignored.
+            next unless $range[0];
+            @range = $range[0] .. $range[1] if $#range > 0;
+            push @nums, @range;
+        }
+    }
+    if (@nums) {
+        my %comb;
+        # Convert array @nums into hash to remove any duplicate values.
+        @comb{@nums} = ();
+        # Convert hash %comb back into array and sort in ascending order.
+        @nums = sort keys %comb;
+    }
+    else {
+        my $s = 's';
+        $s = '' if $#args == 0;
+        print "Invalid argument$s: @args\n";
+        pod2usage(2);
+    }
+}
+
+sub get_url_title {
+    require HTML::HeadParser;
+    my $p = HTML::HeadParser->new;
+    my $url = shift;
+    # curl -sg = silent, globoff (allows URLs with []s to be processed).
+    $p->parse(my $html = qx(curl -sg $url));
+    $p->header('Title');
+}
+
+sub open_url {
+    my $url = shift;
+    qx($browser $url);
+    die "could not open $url using $browser\n" if $? >> 8 != 0;
+}
+
+sub add {
+    my @args = @_;
+    my $url = shift @args;
+    my ($memo, $line);
+    if (@args) {
+        for (@args) {
+            $memo .= "$_ " if $_;
+        }
+        # A space is appended to the final word of $memo,
+        # so another between $memo and $sep would be redundant.
+        $line .= "$memo$sep " if $memo;
+    }
+    if ($opt{'t'}) {
+        can_load(modules => {'HTML::HeadParser' => undef})
+            ? my $url_title = &get_url_title($url)
+            : die "could not load HTML::HeadParser\n";
+        $line .= "$url_title $sep " if $url_title;
+    }
+    $line .= "$url $sep " . localtime->strftime();
+    unless (-e $file) {
+        my $dir = dirname $file;
+        make_path $dir or die "could not make $dir\n" unless -d $dir;
+    }
+    # $file is created when it is tied.
+    tie my @lines, 'Tie::File', $file
+        or die "could not open $file: $!\n";
+    $opt{'a'} ? push @lines, $line : unshift @lines, $line;
+    untie @lines;
+    print "$line\n" unless $opt{'q'};
+}
+
+sub open_nums {
+    &check_for_file;
+    tie my @lines, 'Tie::File', $file
+        or die "could not open $file: $!\n";
+    my @nums = @_;
+    for (0 .. $#nums) {
+        # Compensate for numbering lines in file starting at 1.
+        my $i = $nums[$_] - 1;
+        # Because splice does not re-index arrays, it is necessary to decrease
+        # the working index $i by the number of previous line removals
+        # (requires that array @nums be in ascending numerical order).
+        $i -= $_ unless $opt{'k'};
+        if ($lines[$i]) {
+            my @entry = split /$sep/, $lines[$i];
+            &open_url($entry[$#entry - 1]);
+            splice @lines, $i, 1 unless $opt{'k'};
+        }
+        else {
+            print "warning: entry $nums[$_] does not exist\n" unless $opt{'q'};
+        }
+    }
+    untie @lines;
+}
+
+sub open {
+    my $line = shift;
+    my @entry = split /$sep/, $line;
+    &open_url($entry[$#entry - 1]);
+    unless ($opt{'k'}) {
+        &check_for_file;
+        tie my @lines, 'Tie::File', $file
+            or die "could not open $file: $!\n";
+        # Allow URLs with []s to be part of the grep.
+        $line = quotemeta $line;
+        @lines = grep {!/$line/} @lines;
+        untie @lines;
+    }
+}
+
+sub list {
+    &check_for_file;
+    tie my @lines, 'Tie::File', $file
+        or die "could not open $file: $!\n";
+    my $pad = length scalar @lines;
+    # If the lowercase first character of @_[0] is 'd'.
+    if (lc (substr shift, 0, 1) eq 'd') {
+        my @rev_lines = reverse @lines;
+        for (0 .. $#lines) {
+            my $padding;
+            # $padding is one space minimum.
+            $padding .= ' ' for 0 .. ($pad - length $#rev_lines - $_ + 1);
+            printf "[$padding%u ] $rev_lines[$_]\n", $#rev_lines - $_ + 1;
+        }
+    }
+    else {
+        for (0 .. $#lines) {
+            my $padding;
+            $padding .= ' ' for 0 .. ($pad - length $_ + 1);
+            printf "[$padding%u ] $lines[$_]\n", $_ + 1;
+        }
+    }
+    untie @lines;
+}
+
+sub remove_nums {
+    &check_for_file;
+    tie my @lines, 'Tie::File', $file
+        or die "could not open $file: $!\n";
+    my @nums = @_;
+    my $removed = 0;
+    for (0 .. $#nums) {
+        my $i = $nums[$_] - ($_ + 1);
+        if ($lines[$i]) {
+            splice @lines, $i, 1;
+            $removed++;
+        }
+        else {
+            print "warning: entry $nums[$_] does not exist\n" unless $opt{'q'};
+        }
+    }
+    untie @lines;
+    unless ($opt{'q'}) {
+        my $s = 's';
+        $s = '' if $removed == 1;
+        print "removed $removed line$s\n";
+    }
+}
+
+__END__
+
+=head1 SYNOPSIS
+
+later [options] [URL] [memo ...]
+
+  General options:
+    -h, --help        print this message and exit
+    -v, --version     print version and exit
+    -q, --quiet       disable output
+    -f FILE           file on which to operate (default is $HOME/.later)
+
+  Add options:
+    -a                append entry to FILE (default is prepend)
+    -t                add URL title to entry (requires curl, HTML::Parser)
+
+  Open options:
+    -o NUMBERS*       open entries with given NUMBERS
+    -O ENTRY          open given ENTRY
+    -k                keep entries after opening (default is remove)
+
+  Manipulate options:
+    -l [d]            list contents of FILE with numbered lines,
+                      descending if d is given (default is ascending)
+    -r NUMBERS*       remove from FILE entries with given NUMBERS
+
+  *accepts a range of numbers separated by a hyphen (e.g. 1-9)
+
+=cut
