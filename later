@@ -91,7 +91,7 @@ sub get_nums {
         # Convert array @nums into hash to remove any duplicate values.
         @comb{@nums} = ();
         # Convert hash %comb back into array and sort in ascending order.
-        @nums = sort keys %comb;
+        @nums = sort { $a <=> $b } keys %comb;
     }
     else {
         my $s = 's';
