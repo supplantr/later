@@ -82,6 +82,8 @@ sub get_nums {
             # Prevent 0, 0-x from being accepted; 1-0 produces no range,
             # so it is already ignored.
             next unless $range[0];
+            # Compensate for numbering lines in file starting at 1.
+            $_-- for @range;
             @range = $range[0] .. $range[1] if $#range > 0;
             push @nums, @range;
         }
@@ -153,8 +155,7 @@ sub open_nums {
         or die "could not open $file: $!\n";
     my @nums = @_;
     for (0 .. $#nums) {
-        # Compensate for numbering lines in file starting at 1.
-        my $i = $nums[$_] - 1;
+        my $i = $nums[$_];
         # Because splice does not re-index arrays, it is necessary to decrease
         # the working index $i by the number of previous line removals
         # (requires that array @nums be in ascending numerical order).
@@ -218,7 +219,7 @@ sub remove_nums {
     my @nums = @_;
     my $removed = 0;
     for (0 .. $#nums) {
-        my $i = $nums[$_] - ($_ + 1);
+        my $i = $nums[$_] - $_;
         if ($lines[$i]) {
             splice @lines, $i, 1;
             $removed++;
