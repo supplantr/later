@@ -50,13 +50,13 @@ __note:__ For -O, if ENTRY is found in FILE it will be removed. Specify -k to
 
 Copy URL from clipboard and use dmenu to prompt for memo:
 
-    #!/usr/bin/env bash
+    #!/bin/bash
 
     later -q -t "$(xsel -b)" "$(dmenu -p memo: <&-)"
 
 Pipe file into dmenu and open selected entry:
 
-    #!/usr/bin/env bash
+    #!/bin/bash
 
     if [[ -f "$1" ]]; then
         FILE="$1"
