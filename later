@@ -23,7 +23,7 @@ use File::Basename;
 use File::Path qw(make_path);
 use Time::Piece;
 
-our $VERSION = '1.0.0';
+our $VERSION = '1.0.1';
 
 my (%opt, @o, @r, $file, $browser);
 my $sep = '>>>';
@@ -108,14 +108,14 @@ sub get_url_title {
     my $p = HTML::HeadParser->new;
     my $url = shift;
     # curl -sg = silent, globoff (allows URLs with []s to be processed).
-    $p->parse(my $html = qx(curl -sg $url));
+    $p->parse(my $html = qx(curl -sg '$url'));
     $p->header('Title');
 }
 
 sub open_url {
     my $url = shift;
-    qx($browser $url);
-    die "could not open $url using $browser\n" if $? >> 8 != 0;
+    system($browser, $url) == 0
+        or die "could not open $url using $browser\n";
 }
 
 sub add {
