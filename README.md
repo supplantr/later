@@ -65,3 +65,7 @@ Pipe file into dmenu and open selected entry:
     fi
 
     later -q -O "$(dmenu -l 30 < $FILE)"
+
+## known issues
+
+* The -t option sometimes fails. One known upstream issue is documented [here](https://github.com/libwww-perl/http-message/issues/3).
