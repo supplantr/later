@@ -68,4 +68,4 @@ Pipe file into dmenu and open selected entry:
 
 ## known issues
 
-* The -t option sometimes fails. One known upstream issue is documented [here](https://github.com/libwww-perl/http-message/issues/3).
+* HTML header parsing errors (such as [this](https://github.com/libwww-perl/http-message/issues/3)) are printed but otherwise ignored.

@@ -107,8 +107,9 @@ sub get_url_title {
     require HTML::HeadParser;
     my $p = HTML::HeadParser->new;
     my $url = shift;
+    # eval to catch otherwise fatal errors in parse.
     # curl -sg = silent, globoff (allows URLs with []s to be processed).
-    $p->parse(my $html = qx(curl -sg '$url'));
+    eval { $p->parse(my $html = qx(curl -sg '$url')); }; warn $@ if $@;
     $p->header('Title');
 }
 
