@@ -2,15 +2,15 @@
 
 ## dependencies
 
-* perl
+ * perl
 
-__note:__ $HOME (unless -f is specified) and $BROWSER environment variables
-          are expected to be defined.
+**note:** `$HOME` (unless `-f` is specified) and `$BROWSER` environment
+          variables are expected to be defined.
 
-### optional dependencies (see -t command-line option)
+### optional dependencies (see `-t` command-line option)
 
-* curl
-* HTML::Parser ([perl module](http://search.cpan.org/dist/HTML-Parser/))
+ * curl
+ * HTML::Parser ([perl module](http://search.cpan.org/dist/HTML-Parser/))
 
 ## command-line options
 
@@ -38,8 +38,9 @@ __note:__ $HOME (unless -f is specified) and $BROWSER environment variables
 
       *accepts a range of numbers separated by a hyphen (e.g. 1-9)
 
-__note:__ For -O, if ENTRY is found in FILE it will be removed. Specify -k to
-          prevent this and to skip the check for the existence of FILE.
+**note:** For `-O`, if `ENTRY` is found in `FILE` it will be removed. Specify
+          `-k` to prevent this and to skip the check for the existence of
+          `FILE`.
 
 #### examples
 
@@ -48,13 +49,13 @@ __note:__ For -O, if ENTRY is found in FILE it will be removed. Specify -k to
 
 ## example scripts
 
-Copy URL from clipboard and use dmenu to prompt for memo:
+Copy URL from clipboard and use `dmenu` to prompt for memo:
 
     #!/bin/bash
 
     later -q -t "$(xsel -b)" "$(dmenu -p memo: <&-)"
 
-Pipe file into dmenu and open selected entry:
+Pipe file into `dmenu` and open selected entry:
 
     #!/bin/bash
 
@@ -68,4 +69,6 @@ Pipe file into dmenu and open selected entry:
 
 ## known issues
 
-* HTML header parsing errors (such as [this](https://github.com/libwww-perl/http-message/issues/3)) are printed but otherwise ignored.
+ * HTML header parsing errors (such as
+   [this](https://github.com/libwww-perl/http-message/issues/3)) are printed
+   but otherwise ignored.
