@@ -1,11 +1,8 @@
-# later = minimalism + procrastination
+# later
 
 ## dependencies
 
  * perl
-
-**note:** `$HOME` (unless `-f` is specified) and `$BROWSER` environment
-          variables are expected to be defined.
 
 ### optional dependencies (see `-t` command-line option)
 
@@ -37,10 +34,6 @@
         -r NUMBERS*       remove from FILE entries with given NUMBERS
 
       *accepts a range of numbers separated by a hyphen (e.g. 1-9)
-
-**note:** For `-O`, if `ENTRY` is found in `FILE` it will be removed. Specify
-          `-k` to prevent this and to skip the check for the existence of
-          `FILE`.
 
 #### examples
 
